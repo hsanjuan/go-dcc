@@ -5,7 +5,7 @@ import (
 	"time"
 
 	dcc "github.com/hsanjuan/go-dcc"
-	"github.com/hsanjuan/go-dcc/driver/dummy"
+	"github.com/hsanjuan/go-dcc/driver/dccpi"
 )
 
 func main() {
@@ -13,8 +13,9 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	controller := dcc.NewControllerWithConfig(&dummy.DCCDummy{}, cfg)
+	controller := dcc.NewControllerWithConfig(&dccpi.DCCPi{}, cfg)
+	//controller := dcc.NewControllerWithConfig(&dummy.DCCDummy{}, cfg)
 	controller.Start()
-	time.Sleep(20000 * time.Microsecond)
+	time.Sleep(60 * time.Second)
 	controller.Stop()
 }

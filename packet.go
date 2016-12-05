@@ -25,7 +25,7 @@ const (
 
 // Some customizable DCC-related variables
 var (
-	BitOnePartDuration  = 58 * time.Microsecond
+	BitOnePartDuration  = 55 * time.Microsecond
 	BitZeroPartDuration = 200 * time.Microsecond
 	zeroTs              syscall.Timespec
 	oneTs               syscall.Timespec
@@ -38,34 +38,20 @@ var (
 // reserved for headlight. This reduces speed steps from 32 to 16
 var HeadlightCompatMode = false
 
+var timeval syscall.Timeval
+
 func init() {
 	log.Println("Adjusting timers")
 	var delay0 time.Duration = 0
 	var delay1 time.Duration = 0
-	testTs1 := syscall.NsecToTimespec(int64(BitOnePartDuration))
-	testTs0 := syscall.NsecToTimespec(int64(BitZeroPartDuration))
 
-	for i := 0; i < 100; i++ {
-		t := time.Now()
-		syscall.Nanosleep(&testTs1, nil)
-		delay1 += time.Since(t) - time.Duration(testTs1.Nsec)
+	t := time.Now()
+	delayPoll(BitOnePartDuration)
+	delay1 = time.Since(t) - BitOnePartDuration
 
-	}
-
-	delay1 = delay1 / 100
-
-	if delay1 > BitOnePartDuration {
-		delay1 = BitOnePartDuration - 10
-	}
-
-	for i := 0; i < 100; i++ {
-		t := time.Now()
-		syscall.Nanosleep(&testTs0, nil)
-		delay0 += time.Since(t) - time.Duration(testTs0.Nsec)
-
-	}
-
-	delay0 = delay0 / 100
+	t = time.Now()
+	delayPoll(BitZeroPartDuration)
+	delay0 = time.Since(t) - BitZeroPartDuration
 
 	if delay1 > BitOnePartDuration {
 		delay1 = BitOnePartDuration - 10
@@ -75,10 +61,10 @@ func init() {
 		delay0 = BitOnePartDuration - 10
 	}
 
-	oneTs = syscall.NsecToTimespec(int64(BitOnePartDuration - delay1))
-	zeroTs = syscall.NsecToTimespec(int64(BitZeroPartDuration - delay0))
+	//BitOnePartDuration -= delay1
+	//BitZeroPartDuration -= delay0
 
-	log.Printf("Timers adjusted by: %d, %d.\n", delay0, delay1)
+	log.Printf("New times: %d, %d.\n", BitOnePartDuration, BitZeroPartDuration)
 }
 
 type Direction byte
@@ -192,24 +178,49 @@ func NewBroadcastStopPacket(d DCCDriver, dir Direction, softStop bool, ignoreDir
 	}
 }
 
+func delayPoll(d time.Duration) {
+	syscall.Gettimeofday(&timeval)
+	start := time.Duration(timeval.Usec) * time.Microsecond
+	for {
+		syscall.Gettimeofday(&timeval)
+		gone := time.Duration(timeval.Usec) * time.Microsecond
+		if gone-start >= d {
+			break
+		}
+	}
+}
+
+func delayPoll2(d time.Duration) {
+	start := time.Now()
+	for {
+		if time.Since(start) > d {
+			return
+		}
+	}
+}
+
 func (p *DCCPacket) zero() {
 	debug("0")
 	p.driver.Low()
-	syscall.Nanosleep(&zeroTs, nil)
+	//syscall.Nanosleep(&zeroTs, nil)
 	//time.Sleep(BitZeroPartDuration)
+	delayPoll2(BitZeroPartDuration)
 	p.driver.High()
-	syscall.Nanosleep(&zeroTs, nil)
+	//syscall.Nanosleep(&zeroTs, nil)
 	//time.Sleep(BitZeroPartDuration)
+	delayPoll2(BitZeroPartDuration)
 }
 
 func (p *DCCPacket) one() {
 	debug("1")
 	p.driver.Low()
-	syscall.Nanosleep(&oneTs, nil)
+	//syscall.Nanosleep(&oneTs, nil)
 	//time.Sleep(BitOnePartDuration)
+	delayPoll2(BitOnePartDuration)
 	p.driver.High()
-	syscall.Nanosleep(&oneTs, nil)
+	//syscall.Nanosleep(&oneTs, nil)
 	//time.Sleep(BitOnePartDuration)
+	delayPoll2(BitOnePartDuration)
 }
 
 func (p *DCCPacket) bit(b byte) {

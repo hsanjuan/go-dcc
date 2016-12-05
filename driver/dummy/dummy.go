@@ -14,8 +14,8 @@ func (d *DCCDummy) Low() {
 }
 
 func (d *DCCDummy) High() {
-	//	dur := time.Since(d.lasttick)
-	//	fmt.Println(" Tick Duration:", dur)
+	dur := time.Since(d.lasttick)
+	fmt.Println(" Tick Duration:", dur)
 	// if dur < 150*time.Microsecond {
 	// 	fmt.Print("1")
 	// } else if dur < 300*time.Microsecond {

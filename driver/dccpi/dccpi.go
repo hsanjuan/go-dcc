@@ -32,11 +32,11 @@ func init() {
 type DCCPi struct {
 }
 
-func (pi *DCCPi) Low(bit byte) {
+func (pi *DCCPi) Low() {
 	SignalGPIO.Low()
 }
 
-func (pi *DCCPi) High(bit byte) {
+func (pi *DCCPi) High() {
 	SignalGPIO.High()
 }
 
