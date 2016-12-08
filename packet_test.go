@@ -58,8 +58,8 @@ func TestNewSpeedAndDirectionPacket(t *testing.T) {
 }
 
 func TestNewFunctionGroupOnePacket(t *testing.T) {
-	p := NewFunctionGroupOnePacket(&dummy.DCCDummy{}, 0xFF, true, false, true, false, false)
-	if p.String() != "11111111111111110111111110100100100011011011" {
+	p := NewFunctionGroupOnePacket(&dummy.DCCDummy{}, 0xFF, true, true, true, true, true)
+	if p.String() != "11111111111111110111111110100111110011000001" {
 		t.Error("Bad Function Group One packet: ", p.String())
 	}
 }
