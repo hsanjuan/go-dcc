@@ -25,7 +25,7 @@ Index
   * [Hardware requirements](#hardware-requirements)
   * [Software requirements](#software-requirements)
   * [Installation](#installation)
-  * [dccpi CLI Usage](#dccpi-cli-usage)
+  * [Running](#running)
   * [Go library documentation](#go-library-documentation)
   * [License](#license)
 
@@ -91,7 +91,7 @@ Software requirements
 Installation
 ------------
 
-### dccpi application
+### `dccpi`
 
 Simply run:
 
@@ -125,7 +125,7 @@ The Raspberry Pi will also output a brake signal (HIGH) when the controller is s
 
 The pins mentioned above are configurable.
 
-### dccpi usage
+### `dccpi` usage
 
 The `dccpi` application allows to control locomotives and other DCC devices. This is a summary of the available commands:
 
