@@ -76,8 +76,6 @@ These are the parts:
   * [1x LMD18200T/NOPB Texas Instruments](http://www.ti.com/product/LMD18200/samplebuy)
   * 1x10kΩ + 1x3.3kΩ resistors (both optional)
 
-Here is an image composed of 5 pictures of how an actual prototype which is easy to build looks like: [prototype.jpg](prototype.jpg). Note that the circuit in the pictures includes an additional 5V DC converter (the black chip with 3 legs) and some resistors which are not necessary nor play any part.
-
 Here is an image of a `dccpi` printed PCB plugged to a Raspberry Pi:
 
 ![dccpi-board.jpg](dccpi-board.jpg)
