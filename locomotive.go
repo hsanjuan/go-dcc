@@ -30,11 +30,11 @@ type Locomotive struct {
 
 	mux sync.Mutex
 
-	speedPacket *DCCPacket
-	flPacket    *DCCPacket
+	speedPacket *Packet
+	flPacket    *Packet
 }
 
-func (l *Locomotive) sendPackets(d DCCDriver) {
+func (l *Locomotive) sendPackets(d Driver) {
 	if l.speedPacket == nil {
 		l.mux.Lock()
 		l.speedPacket = NewSpeedAndDirectionPacket(d,

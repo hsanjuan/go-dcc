@@ -14,32 +14,39 @@ var CommandRepeat = 5
 // the sender
 var CommandMaxQueue = 3
 
+// Controller represents a DCC Control Station. The
+// controller keeps tracks of the DCC Locomotives and
+// is in charge of sending DCC packets continuously to
+// the tracks.
 type Controller struct {
-	locomotives map[string]*Locomotive
+	locomotives map[string]Locomotive
 	mux         sync.Mutex
-	driver      DCCDriver
+	driver      Driver
 
 	started    bool
 	doneCh     chan bool
 	shutdownCh chan bool
-	commandCh  chan *DCCPacket
+	commandCh  chan *Packet
 }
 
-func NewController(d DCCDriver) *Controller {
+// NewController builds a Controller.
+func NewController(d Driver) *Controller {
 	return &Controller{
 		driver:      d,
-		locomotives: make(map[string]*Locomotive),
+		locomotives: make(map[string]Locomotive),
 		doneCh:      make(chan bool),
 		shutdownCh:  make(chan bool),
-		commandCh:   make(chan *DCCPacket, CommandMaxQueue),
+		commandCh:   make(chan *Packet, CommandMaxQueue),
 	}
 }
 
-func NewControllerWithConfig(d DCCDriver, cfg *DCCConfig) *Controller {
+// NewControllerWithConfig builds a new Controller using the
+// given configuration.
+func NewControllerWithConfig(d Driver, cfg *Config) *Controller {
 	c := NewController(d)
 
 	for _, loco := range cfg.Locomotives {
-		c.AddLoco(&Locomotive{
+		c.AddLoco(Locomotive{
 			Name:      loco.Name,
 			Address:   loco.Address,
 			Speed:     loco.Speed,
@@ -49,29 +56,40 @@ func NewControllerWithConfig(d DCCDriver, cfg *DCCConfig) *Controller {
 	return c
 }
 
-func (c *Controller) AddLoco(l *Locomotive) {
+// AddLoco adds a DCC device to the controller. The device
+// will start receiving packets if the controller is running.
+func (c *Controller) AddLoco(l Locomotive) {
 	c.mux.Lock()
 	defer c.mux.Unlock()
 	c.locomotives[l.Name] = l
 }
 
-func (c *Controller) RmLoco(l *Locomotive) {
+// RmLoco removes a DCC device from the controller. There
+// will be no longer packets sent to it.
+func (c *Controller) RmLoco(l Locomotive) {
 	c.mux.Lock()
 	defer c.mux.Unlock()
 	delete(c.locomotives, l.Name)
 }
 
-func (c *Controller) GetLoco(n string) *Locomotive {
+// GetLoco retrieves a DCC device by its Name. The boolean is
+// true if the Locomotive was found.
+func (c *Controller) GetLoco(n string) (Locomotive, bool) {
 	c.mux.Lock()
 	defer c.mux.Unlock()
-	return c.locomotives[n]
+	l, ok := c.locomotives[n]
+	return l, ok
 }
 
+// Start starts the controller: powers on the tracks
+// and starts sending packets on them.
 func (c *Controller) Start() {
 	go c.run()
 	c.started = true
 }
 
+// Stop shuts down the controller by stopping to send
+// packets and removing power from the tracks.
 func (c *Controller) Stop() {
 	if c.started {
 		c.shutdownCh <- true

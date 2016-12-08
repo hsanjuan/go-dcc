@@ -1,9 +1,9 @@
 package dcc
 
-// DCCDriver can be implemented by any module to allow using go-dcc
-// on different platforms. DCCDriver modules are in charge of
+// Driver can be implemented by any module to allow using go-dcc
+// on different platforms. dcc.Driver modules are in charge of
 // producing an electrical signal output (i.e. on a GPIO Pin)
-type DCCDriver interface {
+type Driver interface {
 	// Low sets the output to low state.
 	Low()
 	// High sets the output to high.

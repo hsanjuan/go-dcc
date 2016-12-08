@@ -179,7 +179,7 @@ The Go documentation is maintained with GoDoc. See: https://godoc.org/github.com
 
 #### Additional drivers
 
-Additional drivers for `go-dcc` must implement the [`DCCDriver` interface](https://godoc.org/github.com/hsanjuan/go-dcc#DCCDriver).
+Additional drivers for `go-dcc` must implement the [`dcc.Driver` interface](https://godoc.org/github.com/hsanjuan/go-dcc#Driver).
 
 Questions and contributions
 ---------------------------

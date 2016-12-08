@@ -1,6 +1,6 @@
 // +build !debug
 
-// package dcc implements the DCC protocol for controlling model trains.
+// Package dcc implements the DCC protocol for controlling model trains.
 // It can support a number of different encoders, which are in charge of
 // translating DCC packages into electrical signals. By default, a Raspberry
 // Pi driver is provided.
