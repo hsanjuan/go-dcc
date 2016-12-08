@@ -2,6 +2,21 @@ package dcc
 
 import "sync"
 
+// Direction constants.
+const (
+	Backward Direction = 0
+	Forward  Direction = 1
+)
+
+// Direction represents the locomotive direction and can be
+// Forward or Backward.
+type Direction byte
+
+// Locomotive represents a DCC device, usually a locomotive.
+// Locomotives are represented by their name and address and
+// include certain properties like speed, direction or FL.
+// Each locomotive produces two packets: one speed and direction
+// packet and one Function Group One packet.
 type Locomotive struct {
 	Name      string    `json:"name"`
 	Address   uint8     `json:"address"`
@@ -36,6 +51,9 @@ func (l *Locomotive) sendPackets(d DCCDriver) {
 	l.flPacket.Send()
 }
 
+// Apply makes any changes to the Locomotive's properties
+// to be reflected in the packets generated for it and,
+// therefore, alter the behaviour of the device on the tracks.
 func (l *Locomotive) Apply() {
 	l.mux.Lock()
 	defer l.mux.Unlock()

@@ -1,8 +1,8 @@
 package dcc
 
 import (
-	"fmt"
 	"log"
+	"sync"
 )
 
 // CommandRepeat specifies how many times a single
@@ -16,8 +16,10 @@ var CommandMaxQueue = 3
 
 type Controller struct {
 	locomotives map[string]*Locomotive
+	mux         sync.Mutex
 	driver      DCCDriver
 
+	started    bool
 	doneCh     chan bool
 	shutdownCh chan bool
 	commandCh  chan *DCCPacket
@@ -48,26 +50,34 @@ func NewControllerWithConfig(d DCCDriver, cfg *DCCConfig) *Controller {
 }
 
 func (c *Controller) AddLoco(l *Locomotive) {
+	c.mux.Lock()
+	defer c.mux.Unlock()
 	c.locomotives[l.Name] = l
 }
 
 func (c *Controller) RmLoco(l *Locomotive) {
+	c.mux.Lock()
+	defer c.mux.Unlock()
 	delete(c.locomotives, l.Name)
 }
 
 func (c *Controller) GetLoco(n string) *Locomotive {
+	c.mux.Lock()
+	defer c.mux.Unlock()
 	return c.locomotives[n]
 }
 
 func (c *Controller) Start() {
 	go c.run()
+	c.started = true
 }
 
 func (c *Controller) Stop() {
-	log.Println("Stopping controller")
-	close(c.shutdownCh)
-	fmt.Println("ch sent")
-	<-c.doneCh
+	if c.started {
+		c.shutdownCh <- true
+		<-c.doneCh
+		c.started = false
+	}
 	log.Println("All Stop. Tracks Off.")
 }
 
@@ -80,7 +90,7 @@ func (c *Controller) run() {
 		case <-c.shutdownCh:
 			stop.Send()
 			c.driver.TracksOff()
-			defer close(c.doneCh)
+			c.doneCh <- true
 			return
 		case p := <-c.commandCh:
 			for i := 0; i < CommandRepeat; i++ {
@@ -91,11 +101,12 @@ func (c *Controller) run() {
 				c.commandCh <- idle
 				break
 			}
-
+			c.mux.Lock()
 			for _, loco := range c.locomotives {
 				loco.sendPackets(c.driver)
 			}
-			idle.PacketSpace()
+			c.mux.Unlock()
+			idle.PacketPause()
 		}
 	}
 }

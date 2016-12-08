@@ -1,13 +1,22 @@
-NRMA Digital Command Control (DCC) implementation for Raspberry Pi
-==================================================================
+go-dcc
+======
 
-This module implements the DCC protocol for controlling model trains using a Raspberry Pi.
+[![GoDoc](https://godoc.org/github.com/hsanjuan/go-dcc?status.svg)](http://godoc.org/github.com/hsanjuan/go-dcc)
+[![Build Status](https://travis-ci.org/hsanjuan/go-dcc.svg?branch=master)](https://travis-ci.org/hsanjuan/go-dcc)
+[![Coverage Status](https://coveralls.io/repos/github/hsanjuan/go-dcc/badge.svg?branch=master)](https://coveralls.io/github/hsanjuan/go-dcc?branch=master)
 
-It is able to output direction and speed DCC-encoded packets on one of the GPIO pins (see example below).
 
-It is based on the:
+> NRMA Digital Command Control (DCC) implementation in Go.
+
+This module implements the DCC protocol for controlling model trains.
+
+It includes a Raspberry Pi driver and a `dccpi` command line application for easy use on this platform, although it is
+easily extensible to other systems.
+
+The implementation is based on the:
   * [S-91 Electrical Standard](http://www.nmra.org/sites/default/files/standards/sandrp/pdf/s-9.1_electrical_standards_2006.pdf)
   * [S-92 DCC Communications Standard](http://www.nmra.org/sites/default/files/s-92-2004-07.pdf)
+  * [S-9.2.1 Extended Packet Formats for Digital Command Control standard](http://www.nmra.org/sites/default/files/s-9.2.1_2012_07.pdf)
 
 Index
 -----
@@ -16,8 +25,8 @@ Index
   * [Hardware requirements](#hardware-requirements)
   * [Software requirements](#software-requirements)
   * [Installation](#installation)
-  * [Usage](#usage)
-  * [Example](#example)
+  * [dccpi CLI Usage](#dccpi-cli-usage)
+  * [Go library documentation](#go-library-documentation)
   * [License](#license)
 
 Features
@@ -27,28 +36,30 @@ Features
 
 > Joe Armstrong
 
-`go-dccpi` is a minimal implementation which aims to offer support to control some trains and be easy to integrate in other projects. It is not a support-all, complex, multi-protocol, ui-included, buy-my-hardware solution. For this, there are better solutions like [RocRail](http://wiki.rocrail.net/doku.php), [JMRI](http://jmri.sourceforge.net/), [SPROG](http://www.sprog-dcc.co.uk/), [GertBot](http://www.gertbot.com/) etc.
+`go-dcc` is aims to to provide a minimal feature set to control DCC-based locomotives. Although the original aim is to support Raspberry Pi as a Command Station, it can easily incorporate drivers for other platforms and be integrated in projects with larger scope. It is not a support-all, complex, multi-protocol, ui-included, buy-my-hardware solution. For this, there are better solutions like [RocRail](http://wiki.rocrail.net/doku.php), [JMRI](http://jmri.sourceforge.net/), [SPROG](http://www.sprog-dcc.co.uk/), [GertBot](http://www.gertbot.com/) etc.
 
+`go-dcc` is inspired in `dccpi`(https://github.com/hsanjuan/dccpi), a Python library of similar characteristics. Go has the advantage that it requires no C dependencies, it is faster and less prone to errors. Some of the features supported are:
 
-  * Easy to install and use (`go-get`)
-  * Easy to integrate as building block
-  * Should works on multiple RPi operating systems
-  * Control DCC locomotives using plain Go!
-  * Simple Command-Line-Interface
-  * Set speed (14, 28, 128 speed steps) and direction
+  * Easy to build and install (using `go get` or simply downloading the binaries)
+  * Easy to adapt to new platforms
+  * Well tested and documented
+  * Supports Raspberry Pi Model B+ and newer
+  * Control DCC locomotives using a simple command line interface or Go
+  * Set speed (28 speed steps) and direction
   * Set FL (lights), F1-F4 functions
 
-Note `go-dccpi` does not yet implement any advanced features like decoder registry operations (i.e. set address).
+Note `go-dcc` does not yet implement any advanced features like decoder registry operations (i.e. set address).
 
 Hardware requirements
 ---------------------
 
-  * A Raspberry Pi (developed/tested on model B+)
+  * A Raspberry Pi (developed/tested on model B+ v1.2). It should work with newer, more powerful models.
   * DCC-decoder-equipped locomotives
   * Train tracks
-  * The Raspberry Pi needs an additional booster circuit to actually provide the signal to the tracks which you can build yourself. See below.
+  * Booster circuit: needed to provide the signal to the tracks. See below.
+  * A power adapter with ~12-24V DC output. I use an AC-DC adapter with an output of 18V, 2A.
 
-`go-dccpi` should work on any common scale. DCC decoders take a wide range of voltage outputs (up to 24v). This has been tested on N-scale with a 18v booster circuit.
+`go-dcc` should work on any common scale. DCC decoders take a wide range of voltage outputs (up to 24v). This has been tested on N-scale with a 18v booster circuit.
 
 ### Booster circuit
 
@@ -65,60 +76,117 @@ These are the parts:
   * [1x LMD18200T/NOPB Texas Instruments](http://www.ti.com/product/LMD18200/samplebuy)
   * 1x10kΩ + 1x3.3kΩ resistors (both optional)
 
-Here is an image composed of 5 pictures of how my actual working prototype looks like: [prototype.jpg](prototype.jpg)
+Here is an image composed of 5 pictures of how an actual prototype which is easy to build looks like: [prototype.jpg](prototype.jpg). Note that the circuit in the pictures includes an additional 5V DC converter (the black chip with 3 legs) and some resistors which are not necessary nor play any part.
 
-Note that the circuit in the pictures includes an additional 5V DC converter (the black chip with 3 legs) and some resistors which are not necessary nor play any part.
+Here is an image of a `dccpi` printed PCB plugged to a Raspberry Pi:
 
-A production version of this prototype as a Raspberry Pi shield:
-
-[dccpi-board.jpg](dccpi-board.jpg)
-
+![dccpi-board.jpg](dccpi-board.jpg)
 
 Software requirements
 ---------------------
 
-  * Development
-    * Go: `apt-get install golang-go`
-    * make
+  * Go: `apt-get install golang-go`
 
 
 Installation
 ------------
 
-Command-line-interface installation:
+### dccpi application
 
-`go install github.com/hsanjuan/go-dccpi/dccpi`
+Simply run:
 
-From Source:
+```
+> go get -u github.com/stianeikeland/go-rpio
+> go install github.com/hsanjuan/go-dccpi/dccpi
+```
+
+and the `dccpi` application will be downloaded, built and installed.
+
+### Sources
+
+Building sources:
 
 ```
 > go get -u github.com/hsanjuan/go-dccpi
 > cd $GOPATH/src/github.com/hsanjuan/go-dccpi
-> make install
+> make
 ```
 
-Usage
------
+Running
+-------
 
-There are 3 main componenents:
+### Raspberry Pi driver
 
-  * `DCCLocomotive`: represents a locomotive (device equipped with a DCC decoder). We can set speed, status of lights etc.
-  * `DCCController`: represents the command station, that can be turned on/off. When it's on, it sends packets using a DCCEncoder.
-  * `DCCRPiEncoder`: it implements methods to actually send packets. The RPi encoder uses a c-extension based on WiringPi to do it. It should be easy to add other encoders (for example for different platforms than the RPi or based on other extensions).
+The Raspberry Pi driver is a submodule located at `drivers/dccpi/dccpi.go`.
 
-The Raspberry Pi will output the signal (which goes from 0v-Low to 3.3v-High) on BCM GPIO pin 17, which is Physical Pin 11 (Model B+), which is wiringPi pin 0. The booster is in charge of converting this signal into the DCC signal ranges (i.e. 18v to -18v).
+By default, The Raspberry Pi will output the signal (which goes from 0v-Low to 3.3v-High) on BCM GPIO pin 17, which is Physical Pin 11 (Model B+). The booster is in charge of converting this signal into the DCC signal ranges (i.e. 18v to -18v).
 
-The Raspberry Pi will also output a brake signal (HIGH) when the controller is stopped on BCM GPIO pin 27, which is Pysical Pin 13 (Model B+), which is wiringPi pin 2 (so next to the one above). This can be used to stop signal on the tracks if your booster supports it (see booster schematics). Otherwise locos will receive DC current directly, and either burn or turn into DC mode (at full speed).
+The Raspberry Pi will also output a brake signal (HIGH) when the controller is stopped on BCM GPIO pin 27, which is Pysical Pin 13 (Model B+). This can be used to stop the signal on the tracks if your booster supports it (see booster schematics). Otherwise locos will receive DC current directly and probably turn into analog DC mode and start going at full speed.
 
-See example below and read the code for more info.
+The pins mentioned above are configurable.
 
-CLI Example
------------
+### dccpi usage
 
+The `dccpi` application allows to control locomotives and other DCC devices. This is a summary of the available commands:
 
-Go Module Example
------------------
+```
+> dccpi -help            # displays help on how to use
+> dccpi                  # starts the dccpi application
+dccpi> help              # show help on existing commands
+dccpi> power on          # starts the DCC controller and powers the tracks by disabling the break signal
+dccpi> register loco1 3  # registers a new DCC device "loco1" on address 3
+dccpi> unregister loco1  # removes loco1 from the list
+dccpi> save              # saves the current loco list in the configuration file 
+dccpi> status            # displays status from all registered devices
+dccpi> status loco1      # displays information related device registered as Loco1
+dccpi> speed loco1 10    # sets loco1 speed to 10
+dccpi> stop loco1        # stops loco1
+dccpi> estop loco1       # emergency-stops loco1 (power cut)
+dccpi> fl loco1 on       # enables FL (headlights)
+dccpi> f3 loco1 on       # enables F1 function
+dccpi > power off        # shutdown the DCC controller and enables the break signal
+```
 
+The `dccpi` application optionally takes a JSON configuration file which specifies the configuration of the DCC decoders in the system. The configuration file default path is `~/.dccpi` and looks like:
+
+```json
+{
+    "locomotives": [
+        {
+            "name": "loco1",
+            "address": 6,
+        },
+        {
+            "name": "loco2",
+            "address": 7,
+            "fl": true
+        },
+        {
+            "name": "DCCThing",
+            "address": 8,
+            "f1": true,
+            "f2": true,
+            "f3": true,
+            "f4": false,
+        }
+    ]
+}
+```
+
+This will allow to send packets to the three defined DCC devices directly without the need to `register` them when running the application.
+
+### Go Library Documentation
+
+The Go documentation is maintained with GoDoc. See: https://godoc.org/github.com/hsanjuan/go-dcc .
+
+#### Additional drivers
+
+Additional drivers for `go-dcc` must implement the [`DCCDriver` interface](https://godoc.org/github.com/hsanjuan/go-dcc#DCCDriver).
+
+Questions and contributions
+---------------------------
+
+PRs accepted. Please open an issue if you have any questions.
 
 License
 -------

@@ -1,12 +1,11 @@
 package dcc
 
 import (
-	"log"
-	"syscall"
+	"bytes"
 	"time"
 )
 
-// DCC protocol-defined values
+// DCC protocol-defined values for reference.
 const (
 	BitOnePartMinDuration  = 55 * time.Microsecond
 	BitOnePartMaxDuration  = 61 * time.Microsecond
@@ -17,80 +16,54 @@ const (
 	PreambleBitsMin        = 14
 )
 
-// Direction
-const (
-	Backward Direction = 0
-	Forward  Direction = 1
-)
-
-// Some customizable DCC-related variables
+// Some customizable DCC-related variables.
 var (
 	BitOnePartDuration  = 55 * time.Microsecond
-	BitZeroPartDuration = 200 * time.Microsecond
-	zeroTs              syscall.Timespec
-	oneTs               syscall.Timespec
-
-	PacketSeparation = 15 * time.Millisecond
-	PreambleBits     = 16
+	BitZeroPartDuration = 100 * time.Microsecond
+	PacketSeparation    = 15 * time.Millisecond
+	PreambleBits        = 16
 )
 
 // HeadlightCompatMode controls if one bit in the speed instruction is
-// reserved for headlight. This reduces speed steps from 32 to 16
+// reserved for headlight. This reduces speed steps from 32 to 16 steps.
 var HeadlightCompatMode = false
 
-var timeval syscall.Timeval
-
-func init() {
-	log.Println("Adjusting timers")
-	var delay0 time.Duration = 0
-	var delay1 time.Duration = 0
-
-	t := time.Now()
-	delayPoll(BitOnePartDuration)
-	delay1 = time.Since(t) - BitOnePartDuration
-
-	t = time.Now()
-	delayPoll(BitZeroPartDuration)
-	delay0 = time.Since(t) - BitZeroPartDuration
-
-	if delay1 > BitOnePartDuration {
-		delay1 = BitOnePartDuration - 10
-	}
-
-	if delay0 > BitOnePartDuration {
-		delay0 = BitOnePartDuration - 10
-	}
-
-	//BitOnePartDuration -= delay1
-	//BitZeroPartDuration -= delay0
-
-	log.Printf("New times: %d, %d.\n", BitOnePartDuration, BitZeroPartDuration)
-}
-
-type Direction byte
-
+// DCCPacket represents the unit of information that can be sent to the DCC
+// devices in the system. DCCPacket implements the DCC protocol for converting
+// the information into DCC-encoded 1 and 0s.
 type DCCPacket struct {
-	driver       DCCDriver
-	address      byte
-	instructions []byte
-	error        byte
+	driver  DCCDriver
+	address byte
+	data    []byte
+	ecc     byte
+
+	// encoded holds 1 byte per packet bit because
+	// go does not handle single bits well
+	encoded []byte
 }
 
-func NewPacket(d DCCDriver, addr byte, ins []byte) *DCCPacket {
-	addr = addr & 0x7F // 0b 0111 1111y
-	error := addr
-	for _, i := range ins {
-		error = error ^ i
+// NewPacket returns a new generic DCC Packet.
+func NewPacket(d DCCDriver, addr byte, data []byte) *DCCPacket {
+	ecc := addr
+	for _, i := range data {
+		ecc = ecc ^ i
 	}
 
 	return &DCCPacket{
-		driver:       d,
-		address:      addr,
-		instructions: ins,
-		error:        error,
+		driver:  d,
+		address: addr,
+		data:    data,
+		ecc:     ecc,
 	}
 }
 
+func NewBaselinePacket(d DCCDriver, addr byte, data []byte) *DCCPacket {
+	addr = addr & 0x7F // 0b01111111 last 7 bits
+	return NewPacket(d, addr, data)
+}
+
+// NewSpeedAndDirectionPacket returns a new baseline DCC packet with speed and
+// direction information.
 func NewSpeedAndDirectionPacket(d DCCDriver, addr byte, speed byte, dir Direction) *DCCPacket {
 	addr = addr & 0x7F // 0b 0111 1111
 	if HeadlightCompatMode {
@@ -100,18 +73,20 @@ func NewSpeedAndDirectionPacket(d DCCDriver, addr byte, speed byte, dir Directio
 	}
 
 	dirB := byte(0x1&dir) << 5
-	ins := (1 << 6) | dirB | speed // 0b01DCSSSS
+	data := (1 << 6) | dirB | speed // 0b01DCSSSS
 
 	return &DCCPacket{
-		driver:       d,
-		address:      addr,
-		instructions: []byte{ins},
-		error:        addr ^ ins,
+		driver:  d,
+		address: addr,
+		data:    []byte{data},
+		ecc:     addr ^ data,
 	}
 }
 
+// NewFunctionGroupOnePacket returns an advanced DCC packet which allows to
+// control FL,F1-F4 functions. FL is usually associated to the headlights.
 func NewFunctionGroupOnePacket(d DCCDriver, addr byte, fl, fl1, fl2, fl3, fl4 bool) *DCCPacket {
-	var ins, fln, fl1n, fl2n, fl3n, fl4n byte = 0, 0, 0, 0, 0, 0
+	var data, fln, fl1n, fl2n, fl3n, fl4n byte = 0, 0, 0, 0, 0, 0
 	if fl {
 		fln = 1 << 4
 	}
@@ -128,34 +103,42 @@ func NewFunctionGroupOnePacket(d DCCDriver, addr byte, fl, fl1, fl2, fl3, fl4 bo
 		fl4n = 1 << 3
 	}
 
-	ins = (1 << 7) | fln | fl1n | fl2n | fl3n | fl4n
+	data = (1 << 7) | fln | fl1n | fl2n | fl3n | fl4n
 
 	return &DCCPacket{
-		driver:       d,
-		address:      addr,
-		instructions: []byte{ins},
-		error:        addr ^ ins,
+		driver:  d,
+		address: addr,
+		data:    []byte{data},
+		ecc:     addr ^ data,
 	}
 }
 
+// NewBroadcastResetPacket returns a new broadcast baseline DCC packet which
+// makes the decoders erase their volatile memory and return to power up
+// state. This stops all locomotives at non-zero speed.
 func NewBroadcastResetPacket(d DCCDriver) *DCCPacket {
 	return &DCCPacket{
-		driver:       d,
-		address:      0,
-		instructions: []byte{0},
-		error:        0 ^ 0,
+		driver:  d,
+		address: 0,
+		data:    []byte{0},
+		ecc:     0 ^ 0,
 	}
 }
 
+// NewBroadcastIdlePacket returns a new broadcast baseline DCC packet
+// on which decoders perform no action.
 func NewBroadcastIdlePacket(d DCCDriver) *DCCPacket {
 	return &DCCPacket{
-		driver:       d,
-		address:      0xFF,
-		instructions: []byte{0},
-		error:        0xFF ^ 0,
+		driver:  d,
+		address: 0xFF,
+		data:    []byte{0},
+		ecc:     0xFF ^ 0,
 	}
 }
 
+// NewBroadcastStopPacket returns a new broadcast baseline DCC packet which
+// tells the decoders to stop all locomotives. If softStop is false, an
+// emergency stop will happen by cutting power off the engine.
 func NewBroadcastStopPacket(d DCCDriver, dir Direction, softStop bool, ignoreDir bool) *DCCPacket {
 	var speed byte = 0
 	if !softStop {
@@ -168,29 +151,21 @@ func NewBroadcastStopPacket(d DCCDriver, dir Direction, softStop bool, ignoreDir
 
 	dirB := 0x1 & byte(dir)
 
-	ins := (1 << 6) | (dirB << 5) | speed
+	data := (1 << 6) | (dirB << 5) | speed
 
 	return &DCCPacket{
-		driver:       d,
-		address:      0x0,
-		instructions: []byte{ins},
-		error:        0x0 ^ ins,
+		driver:  d,
+		address: 0x0,
+		data:    []byte{data},
+		ecc:     0x0 ^ data,
 	}
 }
 
+// delayPoll causes a active delay for the specified time
+// by actively polling the clock. Unfortunately, for latencies
+// under 100us, it is not possible to sleep reliably with
+// syscall.Nanosleep().
 func delayPoll(d time.Duration) {
-	syscall.Gettimeofday(&timeval)
-	start := time.Duration(timeval.Usec) * time.Microsecond
-	for {
-		syscall.Gettimeofday(&timeval)
-		gone := time.Duration(timeval.Usec) * time.Microsecond
-		if gone-start >= d {
-			break
-		}
-	}
-}
-
-func delayPoll2(d time.Duration) {
 	start := time.Now()
 	for {
 		if time.Since(start) > d {
@@ -199,84 +174,105 @@ func delayPoll2(d time.Duration) {
 	}
 }
 
+// zero sends a 0 using the DCCDriver
 func (p *DCCPacket) zero() {
-	debug("0")
 	p.driver.Low()
 	//syscall.Nanosleep(&zeroTs, nil)
 	//time.Sleep(BitZeroPartDuration)
-	delayPoll2(BitZeroPartDuration)
+	delayPoll(BitZeroPartDuration)
 	p.driver.High()
 	//syscall.Nanosleep(&zeroTs, nil)
 	//time.Sleep(BitZeroPartDuration)
-	delayPoll2(BitZeroPartDuration)
+	delayPoll(BitZeroPartDuration)
 }
 
+// one sends a 1 using the DCCDriver
 func (p *DCCPacket) one() {
-	debug("1")
 	p.driver.Low()
 	//syscall.Nanosleep(&oneTs, nil)
 	//time.Sleep(BitOnePartDuration)
-	delayPoll2(BitOnePartDuration)
+	delayPoll(BitOnePartDuration)
 	p.driver.High()
 	//syscall.Nanosleep(&oneTs, nil)
 	//time.Sleep(BitOnePartDuration)
-	delayPoll2(BitOnePartDuration)
+	delayPoll(BitOnePartDuration)
 }
 
-func (p *DCCPacket) bit(b byte) {
-	if b == 1 {
-		p.one()
-	} else if b == 0 {
-		p.zero()
-	}
-}
-
-func (p *DCCPacket) byte(b byte) {
-	for i := uint8(0); i < 8; i++ {
-		bit := (b >> (7 - i)) & 0x1
-		p.bit(bit)
-	}
-	debug(" ")
-}
-
-func (p *DCCPacket) PacketSpace() {
+// PacketPause performs a pause by sleeping
+// during the PacketSeparation time.
+func (p *DCCPacket) PacketPause() {
 	// Not really needed
 	p.driver.Low()
 	time.Sleep(PacketSeparation)
 	p.driver.High()
-	debug("...\n")
 }
 
+// Send encodes and sends a packet using the DCCDriver associated to it.
 func (p *DCCPacket) Send() {
 	if p.driver == nil {
-		log.Println("No driver set")
-		return
+		panic("No driver set")
 	}
+	if p.encoded == nil {
+		p.build()
+	}
+
+	for _, b := range p.encoded {
+		if b == 0 {
+			p.zero()
+		} else {
+			p.one()
+		}
+	}
+}
+
+// By prebuilding packages we ensure more consistent Send() times.
+func (p *DCCPacket) build() {
+	unpackByte := func(b byte) []byte {
+		bs := make([]byte, 8, 8)
+		for i := uint8(0); i < 8; i++ {
+			bit := (b >> (7 - i)) & 0x1
+			bs[i] = bit
+		}
+		return bs
+	}
+	var buf bytes.Buffer
 
 	// Preamble
 	for i := 0; i < PreambleBits; i++ {
-		p.bit(1)
+		buf.WriteByte(1)
 	}
-	debug(" ")
 
 	// Packet start bit
-	p.bit(0)
-	debug(" ")
+	buf.WriteByte(0)
 
 	// Address
-	p.byte(p.address)
+	buf.Write(unpackByte(p.address))
 
 	// Data
-	p.bit(0) // Data start bit
-	debug(" ")
-	for _, ins := range p.instructions {
-		p.byte(ins)
-		p.bit(0) //Data start bit
-		debug(" ")
-
+	buf.WriteByte(0) // Data start bit
+	for _, d := range p.data {
+		buf.Write(unpackByte(d))
+		buf.WriteByte(0) // Data start bit
 	}
-	p.byte(p.error)
+	buf.Write(unpackByte(p.ecc))
 	// Packet end
-	p.bit(1)
-	debug("\n")
+	buf.WriteByte(1)
+	p.encoded = buf.Bytes()
+}
+
+func (p *DCCPacket) String() string {
+	if p.encoded == nil {
+		p.build()
+	}
+	var str string
+	for _, b := range p.encoded {
+		if b == 0 {
+			str += "0"
+		} else if b == 1 {
+			str += "1"
+		} else {
+			panic("bad encoding")
+		}
+	}
+	return str
 }

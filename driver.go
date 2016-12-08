@@ -1,11 +1,12 @@
 package dcc
 
-// Encoder allows to convert a DCC packet into an electrical signal
-// following the DCC specification
+// DCCDriver can be implemented by any module to allow using go-dcc
+// on different platforms. DCCDriver modules are in charge of
+// producing an electrical signal output (i.e. on a GPIO Pin)
 type DCCDriver interface {
-	// Low sets the output to low state
+	// Low sets the output to low state.
 	Low()
-	// High sets the output to high
+	// High sets the output to high.
 	High()
 	// TracksOn turns the tracks on. The exact procedure is left to the
 	// implementation, but tracks should be ready to receive packets from

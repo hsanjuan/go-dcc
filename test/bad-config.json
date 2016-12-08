@@ -1,0 +1,17 @@
+{
+    "locomotives": [
+            "name": "Loco1",
+            "address": 5,
+            "speed": 5,
+            "fl": true
+        },
+        {
+            "name": "Loco2",
+            "address": 5
+        },
+        {
+            "name": "loco3",
+            "address": 4
+        }
+    ]
+}

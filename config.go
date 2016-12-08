@@ -6,12 +6,12 @@ import (
 	"log"
 )
 
-var DefaultConfigPath = "~/.config/go-dcc/config"
-
+// DCCConfig allows to store configuration settings to initialize go-dcc.
 type DCCConfig struct {
 	Locomotives []*Locomotive `json:"locomotives"`
 }
 
+// LoadConfig parses a configuration file and returns a DCCConfig object.
 func LoadConfig(path string) (*DCCConfig, error) {
 	conf, err := ioutil.ReadFile(path)
 	if err != nil {
@@ -22,6 +22,6 @@ func LoadConfig(path string) (*DCCConfig, error) {
 	if err != nil {
 		return nil, err
 	}
-	log.Printf("Loaded configuration for %d locomotive(s)", len(dccConfig.Locomotives))
+	log.Printf("XLoaded configuration for %d locomotive(s)", len(dccConfig.Locomotives))
 	return &dccConfig, nil
 }
