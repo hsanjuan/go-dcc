@@ -22,3 +22,14 @@ func TestLoadConfig(t *testing.T) {
 		t.Error("should have returned an error parsing")
 	}
 }
+
+func TestSave(t *testing.T) {
+	cfg, err := LoadConfig("./test/config.json")
+	if err != nil {
+		t.Fatal("cannot load config")
+	}
+	err = cfg.Save("./test/config.json")
+	if err != nil {
+		t.Error("error saving config")
+	}
+}

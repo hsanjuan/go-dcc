@@ -4,15 +4,34 @@
             "name": "Loco1",
             "address": 6,
             "speed": 5,
-            "fl": true
+            "direction": 0,
+            "fl": true,
+            "f1": false,
+            "f2": false,
+            "f3": false,
+            "f4": false
         },
         {
             "name": "Loco2",
-            "address": 5
+            "address": 5,
+            "speed": 0,
+            "direction": 0,
+            "fl": false,
+            "f1": false,
+            "f2": false,
+            "f3": false,
+            "f4": false
         },
         {
             "name": "loco3",
-            "address": 4
+            "address": 4,
+            "speed": 0,
+            "direction": 0,
+            "fl": false,
+            "f1": false,
+            "f2": false,
+            "f3": false,
+            "f4": false
         }
     ]
 }

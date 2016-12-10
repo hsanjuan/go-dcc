@@ -1,6 +1,9 @@
 package dcc
 
-import "sync"
+import (
+	"fmt"
+	"sync"
+)
 
 // Direction constants.
 const (
@@ -32,6 +35,40 @@ type Locomotive struct {
 
 	speedPacket *Packet
 	flPacket    *Packet
+}
+
+func (l *Locomotive) String() string {
+	var dir, fl, f1, f2, f3, f4 string = "", "off", "off", "off", "off", "off"
+	if l.Direction == Forward {
+		dir = ">"
+	} else {
+		dir = "<"
+	}
+	if l.Fl {
+		fl = "on"
+	}
+	if l.F1 {
+		f1 = "on"
+	}
+	if l.F2 {
+		f2 = "on"
+	}
+	if l.F3 {
+		f3 = "on"
+	}
+	if l.F4 {
+		f4 = "on"
+	}
+	return fmt.Sprintf("%s:%d |%d%s| |%s| |%s|%s|%s|%s|",
+		l.Name,
+		l.Address,
+		l.Speed,
+		dir,
+		fl,
+		f1,
+		f2,
+		f3,
+		f4)
 }
 
 func (l *Locomotive) sendPackets(d Driver) {

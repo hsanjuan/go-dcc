@@ -7,7 +7,8 @@
 package dccpi
 
 import (
-	"log"
+	"fmt"
+	"os"
 
 	rpio "github.com/stianeikeland/go-rpio"
 )
@@ -21,15 +22,23 @@ var (
 func init() {
 	err := rpio.Open()
 	if err != nil {
-		log.Fatal("Cannot initialize GPIO: ", err)
+		fmt.Fprintf(os.Stderr, "Cannot initialize GPIO: "+err.Error()+".\n")
+		return
 	}
 	BrakeGPIO.Output()
 	BrakeGPIO.Pull(rpio.PullUp)
 	SignalGPIO.Output()
-
 }
 
 type DCCPi struct {
+}
+
+func NewDCCPi() (*DCCPi, error) {
+	err := rpio.Open()
+	if err != nil {
+		return nil, err
+	}
+	return &DCCPi{}, nil
 }
 
 func (pi *DCCPi) Low() {

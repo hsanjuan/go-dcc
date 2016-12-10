@@ -39,11 +39,11 @@ func (d *DCCDummy) High() {
 }
 
 func (d *DCCDummy) TracksOff() {
-	fmt.Println("->Tracks off")
+	fmt.Println("-> Dummy driver: Tracks off")
 }
 
 func (d *DCCDummy) TracksOn() {
-	fmt.Println("->Tracks on")
+	fmt.Println("-> Dummy driver: Tracks on")
 	GuessBuffer.Reset()
 	d.lasttick = time.Now()
 }

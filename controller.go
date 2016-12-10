@@ -1,9 +1,6 @@
 package dcc
 
-import (
-	"log"
-	"sync"
-)
+import "sync"
 
 // CommandRepeat specifies how many times a single
 // packet is sent.
@@ -19,7 +16,7 @@ var CommandMaxQueue = 3
 // is in charge of sending DCC packets continuously to
 // the tracks.
 type Controller struct {
-	locomotives map[string]Locomotive
+	locomotives map[string]*Locomotive
 	mux         sync.Mutex
 	driver      Driver
 
@@ -31,9 +28,10 @@ type Controller struct {
 
 // NewController builds a Controller.
 func NewController(d Driver) *Controller {
+	d.TracksOff()
 	return &Controller{
 		driver:      d,
-		locomotives: make(map[string]Locomotive),
+		locomotives: make(map[string]*Locomotive),
 		doneCh:      make(chan bool),
 		shutdownCh:  make(chan bool),
 		commandCh:   make(chan *Packet, CommandMaxQueue),
@@ -46,7 +44,7 @@ func NewControllerWithConfig(d Driver, cfg *Config) *Controller {
 	c := NewController(d)
 
 	for _, loco := range cfg.Locomotives {
-		c.AddLoco(Locomotive{
+		c.AddLoco(&Locomotive{
 			Name:      loco.Name,
 			Address:   loco.Address,
 			Speed:     loco.Speed,
@@ -58,7 +56,7 @@ func NewControllerWithConfig(d Driver, cfg *Config) *Controller {
 
 // AddLoco adds a DCC device to the controller. The device
 // will start receiving packets if the controller is running.
-func (c *Controller) AddLoco(l Locomotive) {
+func (c *Controller) AddLoco(l *Locomotive) {
 	c.mux.Lock()
 	defer c.mux.Unlock()
 	c.locomotives[l.Name] = l
@@ -66,7 +64,7 @@ func (c *Controller) AddLoco(l Locomotive) {
 
 // RmLoco removes a DCC device from the controller. There
 // will be no longer packets sent to it.
-func (c *Controller) RmLoco(l Locomotive) {
+func (c *Controller) RmLoco(l *Locomotive) {
 	c.mux.Lock()
 	defer c.mux.Unlock()
 	delete(c.locomotives, l.Name)
@@ -74,16 +72,34 @@ func (c *Controller) RmLoco(l Locomotive) {
 
 // GetLoco retrieves a DCC device by its Name. The boolean is
 // true if the Locomotive was found.
-func (c *Controller) GetLoco(n string) (Locomotive, bool) {
+func (c *Controller) GetLoco(n string) (*Locomotive, bool) {
 	c.mux.Lock()
 	defer c.mux.Unlock()
 	l, ok := c.locomotives[n]
 	return l, ok
 }
 
+// Locos returns a list of all registered Locomotives.
+func (c *Controller) Locos() []*Locomotive {
+	c.mux.Lock()
+	defer c.mux.Unlock()
+	locos := make([]*Locomotive, 0, len(c.locomotives))
+	for _, l := range c.locomotives {
+		locos = append(locos, l)
+	}
+	return locos
+}
+
+// Command allows to send a custom Packet to the tracks.
+// The packet will be sent CommandRepeat times.
+func (c *Controller) Command(p *Packet) {
+	c.commandCh <- p
+}
+
 // Start starts the controller: powers on the tracks
 // and starts sending packets on them.
 func (c *Controller) Start() {
+	c.driver.TracksOn()
 	go c.run()
 	c.started = true
 }
@@ -96,13 +112,11 @@ func (c *Controller) Stop() {
 		<-c.doneCh
 		c.started = false
 	}
-	log.Println("All Stop. Tracks Off.")
 }
 
 func (c *Controller) run() {
 	idle := NewBroadcastIdlePacket(c.driver)
 	stop := NewBroadcastStopPacket(c.driver, Forward, false, true)
-	c.driver.TracksOn()
 	for {
 		select {
 		case <-c.shutdownCh:

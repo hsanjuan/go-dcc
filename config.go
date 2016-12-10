@@ -22,6 +22,15 @@ func LoadConfig(path string) (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
-	log.Printf("XLoaded configuration for %d locomotive(s)", len(cfg.Locomotives))
+	log.Printf("Loaded configuration for %d locomotive(s)", len(cfg.Locomotives))
 	return &cfg, nil
+}
+
+func (c *Config) Save(path string) error {
+	pretty, err := json.MarshalIndent(c, "", "    ")
+	if err != nil {
+		return err
+	}
+	err = ioutil.WriteFile(path, pretty, 0644)
+	return err
 }
