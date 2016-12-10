@@ -1,6 +1,7 @@
 package dcc
 
 import (
+	"os"
 	"testing"
 	"time"
 
@@ -8,8 +9,10 @@ import (
 )
 
 func TestSend(t *testing.T) {
-	// This facilitates that tests pass on travis :(
-	//dummy.ByteOneMax = 94 * time.Microsecond
+	if os.Getenv("TRAVIS") == "true" {
+		// This facilitates that tests pass on travis :(
+		dummy.ByteOneMax = 94 * time.Microsecond
+	}
 	d := &dummy.DCCDummy{}
 	p := NewBroadcastIdlePacket(d)
 	d.TracksOn()
@@ -18,6 +21,7 @@ func TestSend(t *testing.T) {
 	packetStr := dummy.GuessBuffer.String()
 	t.Log("Pckt: ", p.String())
 	t.Log("Sent: ", packetStr)
+
 	if packetStr != p.String() {
 		t.Error("should have sent the encoded package")
 	}
