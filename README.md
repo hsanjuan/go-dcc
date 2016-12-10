@@ -125,27 +125,29 @@ The pins mentioned above are configurable.
 
 ### `dccpi` usage
 
-The `dccpi` application allows to control locomotives and other DCC devices. This is a summary of the available commands:
+The `dccpi` application allows to control locomotives and other DCC devices. Execute it and you will be taken to the `dccpi` console.
+
+This is a summary of the available commands:
 
 ```
-> dccpi -help            # displays help on how to use
-> dccpi                  # starts the dccpi application
-dccpi> help              # show help on existing commands
-dccpi> power on          # starts the DCC controller and powers the tracks by disabling the break signal
-dccpi> register loco1 3  # registers a new DCC device "loco1" on address 3
-dccpi> unregister loco1  # removes loco1 from the list
-dccpi> save              # saves the current loco list in the configuration file 
-dccpi> status            # displays status from all registered devices
-dccpi> status loco1      # displays information related device registered as Loco1
-dccpi> speed loco1 10    # sets loco1 speed to 10
-dccpi> stop loco1        # stops loco1
-dccpi> estop loco1       # emergency-stops loco1 (power cut)
-dccpi> fl loco1 on       # enables FL (headlights)
-dccpi> f3 loco1 on       # enables F1 function
-dccpi > power off        # shutdown the DCC controller and enables the break signal
+dccpi> help
+
+Available commands (use "help <command>" for information):
+
+direction - Control locomotive direction
+fl - Control the headlight of a locomotive
+exit - Exit from dccpi
+help - Show this help
+power - Control track power
+speed - Control locomotive speed
+status - Show information about devices
+estop - Emergency-stop all locomotives
+register - Add DCC device
+unregister - Remove DCC device
+save - Save current devices in configuration file
 ```
 
-The `dccpi` application optionally takes a JSON configuration file which specifies the configuration of the DCC decoders in the system. The configuration file default path is `~/.dccpi` and looks like:
+The `dccpi` application tries to read a JSON configuration file which specifies the configuration of the DCC decoders in the system. The configuration file default path is `~/.dccpi` and looks like:
 
 ```json
 {
