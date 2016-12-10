@@ -210,7 +210,7 @@ func (p *Packet) Length() int {
 	l += PreambleBits // Preamble
 	l += 1            // Packet start
 	l += 8            // Address byte
-	for range p.data {
+	for i := 0; i < len(p.data); i++ {
 		l += 1 // Data start
 		l += 8 // Data byte
 	}
