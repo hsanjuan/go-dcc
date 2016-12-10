@@ -1,9 +1,6 @@
 package dcc
 
-import (
-	"bytes"
-	"time"
-)
+import "time"
 
 // DCC protocol-defined values for reference.
 const (
@@ -18,7 +15,7 @@ const (
 
 // Some customizable DCC-related variables.
 var (
-	BitOnePartDuration  = 55 * time.Microsecond
+	BitOnePartDuration  = 56 * time.Microsecond
 	BitZeroPartDuration = 100 * time.Microsecond
 	PacketSeparation    = 15 * time.Millisecond
 	PreambleBits        = 16
@@ -37,9 +34,10 @@ type Packet struct {
 	data    []byte
 	ecc     byte
 
-	// encoded holds 1 byte per packet bit because
-	// go does not handle single bits well
-	encoded []byte
+	// encoded holds an int64 (time.Duration) for each
+	// bit in a packet. It is an efficient representation
+	// to save extra function calls and IFs when sending
+	encoded []time.Duration
 }
 
 // NewPacket returns a new generic DCC Packet.
@@ -168,37 +166,12 @@ func NewBroadcastStopPacket(d Driver, dir Direction, softStop bool, ignoreDir bo
 // by actively polling the clock. Unfortunately, for latencies
 // under 100us, it is not possible to sleep reliably with
 // syscall.Nanosleep().
-func delayPoll(d time.Duration) {
-	start := time.Now()
+func delayPoll(now time.Time, d time.Duration) {
 	for {
-		if time.Since(start) > d {
+		if time.Since(now) > d {
 			return
 		}
 	}
-}
-
-// zero sends a 0 using the Driver
-func (p *Packet) zero() {
-	p.driver.Low()
-	//syscall.Nanosleep(&zeroTs, nil)
-	//time.Sleep(BitZeroPartDuration)
-	delayPoll(BitZeroPartDuration)
-	p.driver.High()
-	//syscall.Nanosleep(&zeroTs, nil)
-	//time.Sleep(BitZeroPartDuration)
-	delayPoll(BitZeroPartDuration)
-}
-
-// one sends a 1 using the Driver
-func (p *Packet) one() {
-	p.driver.Low()
-	//syscall.Nanosleep(&oneTs, nil)
-	//time.Sleep(BitOnePartDuration)
-	delayPoll(BitOnePartDuration)
-	p.driver.High()
-	//syscall.Nanosleep(&oneTs, nil)
-	//time.Sleep(BitOnePartDuration)
-	delayPoll(BitOnePartDuration)
 }
 
 // PacketPause performs a pause by sleeping
@@ -219,48 +192,76 @@ func (p *Packet) Send() {
 		p.build()
 	}
 
+	// The way p.encoded is we reduce function calls and ifs
 	for _, b := range p.encoded {
-		if b == 0 {
-			p.zero()
-		} else {
-			p.one()
-		}
+		p.driver.Low()
+		now := time.Now()
+		delayPoll(now, b)
+		p.driver.High()
+		now = time.Now()
+		delayPoll(now, b)
 	}
+}
+
+// Length returns the length of the DCC-encoded representation
+// of a packet.
+func (p *Packet) Length() int {
+	l := 0
+	l += PreambleBits // Preamble
+	l += 1            // Packet start
+	l += 8            // Address byte
+	for range p.data {
+		l += 1 // Data start
+		l += 8 // Data byte
+	}
+	l += 1 // ECC start
+	l += 8 // ECC byte
+	l += 1 // Packet end
+	return l
 }
 
 // By prebuilding packages we ensure more consistent Send() times.
 func (p *Packet) build() {
-	unpackByte := func(b byte) []byte {
-		bs := make([]byte, 8, 8)
+	enc := make([]time.Duration, 0, p.Length())
+
+	unpackByte := func(b byte) []time.Duration {
+		bs := make([]time.Duration, 8, 8)
 		for i := uint8(0); i < 8; i++ {
 			bit := (b >> (7 - i)) & 0x1
-			bs[i] = bit
+			if bit == 0 {
+				bs[i] = BitZeroPartDuration
+			} else {
+				bs[i] = BitOnePartDuration
+			}
 		}
 		return bs
 	}
-	var buf bytes.Buffer
 
 	// Preamble
 	for i := 0; i < PreambleBits; i++ {
-		buf.WriteByte(1)
+		enc = append(enc, BitOnePartDuration)
 	}
 
 	// Packet start bit
-	buf.WriteByte(0)
+	enc = append(enc, BitZeroPartDuration)
 
 	// Address
-	buf.Write(unpackByte(p.address))
+	enc = append(enc, unpackByte(p.address)...)
 
 	// Data
-	buf.WriteByte(0) // Data start bit
 	for _, d := range p.data {
-		buf.Write(unpackByte(d))
-		buf.WriteByte(0) // Data start bit
+		enc = append(enc, BitZeroPartDuration) // Data start
+		enc = append(enc, unpackByte(d)...)    // Data
 	}
-	buf.Write(unpackByte(p.ecc))
+
+	// ECC
+	enc = append(enc, BitZeroPartDuration) // ECC start
+	enc = append(enc, unpackByte(p.ecc)...)
+
 	// Packet end
-	buf.WriteByte(1)
-	p.encoded = buf.Bytes()
+	enc = append(enc, BitOnePartDuration)
+
+	p.encoded = enc
 }
 
 func (p *Packet) String() string {
@@ -269,9 +270,9 @@ func (p *Packet) String() string {
 	}
 	var str string
 	for _, b := range p.encoded {
-		if b == 0 {
+		if b == BitZeroPartDuration {
 			str += "0"
-		} else if b == 1 {
+		} else if b == BitOnePartDuration {
 			str += "1"
 		} else {
 			panic("bad encoding")
