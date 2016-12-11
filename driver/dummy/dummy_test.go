@@ -24,7 +24,11 @@ func TestGuessBuffer(t *testing.T) {
 	d.Low()
 	time.Sleep(5000 * time.Microsecond)
 	d.High()
-	if GuessBuffer.String() != "00" {
+	d.Low()
+	time.Sleep(time.Second)
+	d.High()
+
+	if GuessBuffer.String() != "00\n" {
 		t.Error("it should guess 0")
 	}
 }

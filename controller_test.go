@@ -28,6 +28,25 @@ func TestRmLoco(t *testing.T) {
 	}
 }
 
+func TestLocos(t *testing.T) {
+	c := NewController(&dummy.DCCDummy{})
+	c.AddLoco(&Locomotive{Name: "abc"})
+	l := c.Locos()
+	if len(l) != 1 || l[0].Name != "abc" {
+		t.Error("Locos() does not work")
+	}
+}
+
+func TestCommand(t *testing.T) {
+	d := &dummy.DCCDummy{}
+	c := NewController(d)
+	p := NewBroadcastIdlePacket(d)
+	c.Command(p)
+	c.Start()
+	time.Sleep(250 * time.Millisecond)
+	c.Stop()
+}
+
 func TestStart(t *testing.T) {
 	c := NewController(&dummy.DCCDummy{})
 	c.Start()

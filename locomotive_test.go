@@ -17,3 +17,18 @@ func TestApply(t *testing.T) {
 		t.Error("should have cleared the speed packet")
 	}
 }
+
+func TestString(t *testing.T) {
+	l := &Locomotive{
+		Name:      "loco",
+		Address:   4,
+		Direction: Forward,
+		Speed:     4,
+		Fl:        true,
+		F1:        true,
+		F2:        true,
+		F3:        true,
+		F4:        true,
+	}
+	l.String()
+}
