@@ -95,7 +95,7 @@ Simply run:
 
 ```
 > go get -u github.com/stianeikeland/go-rpio
-> go install github.com/hsanjuan/go-dccpi/dccpi
+> go get -u github.com/hsanjuan/go-dccpi/dccpi
 ```
 
 and the `dccpi` application will be downloaded, built and installed.
@@ -141,7 +141,6 @@ help - Show this help
 power - Control track power
 speed - Control locomotive speed
 status - Show information about devices
-estop - Emergency-stop all locomotives
 register - Add DCC device
 unregister - Remove DCC device
 save - Save current devices in configuration file

@@ -15,7 +15,7 @@ const (
 
 // Some customizable DCC-related variables.
 var (
-	BitOnePartDuration  = 56 * time.Microsecond
+	BitOnePartDuration  = 55 * time.Microsecond
 	BitZeroPartDuration = 100 * time.Microsecond
 	PacketSeparation    = 15 * time.Millisecond
 	PreambleBits        = 16

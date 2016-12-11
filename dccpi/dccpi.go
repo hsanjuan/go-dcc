@@ -100,15 +100,15 @@ Usage: direction <device_name> <backward|forward|reverse>
 
 This command sets the direction of a given device.
 `},
-	"estop": {
-		Name:      "estop",
-		ShortDesc: "Emergency-stop all locomotives",
-		LongDesc: `
-Usage: estop
+	// 	"estop": {
+	// 		Name:      "estop",
+	// 		ShortDesc: "Emergency-stop all locomotives",
+	// 		LongDesc: `
+	// Usage: estop
 
-This commands sends a broadcast command which asks DCC devices to
-cut the power from all locomotives, causing their immediate stop.
-`},
+	// This commands sends a broadcast command which asks DCC devices to
+	// cut the power from all locomotives, causing their immediate stop.
+	// `},
 	"fl": {
 		Name:      "fl",
 		ShortDesc: "Control the headlight of a locomotive",
@@ -370,13 +370,13 @@ func (r *repl) run() {
 			default:
 				wrongArgs(cmd)
 			}
-		case "estop":
-			if i != 1 {
-				wrongArgs(cmd)
-				break
-			}
-			estop := dcc.NewBroadcastStopPacket(r.driver, dcc.Forward, false, true)
-			r.ctrl.Command(estop)
+		// case "estop":
+		// 	if i != 1 {
+		// 		wrongArgs(cmd)
+		// 		break
+		// 	}
+		// 	estop := dcc.NewBroadcastStopPacket(r.driver, dcc.Forward, false, true)
+		// 	r.ctrl.Command(estop)
 		case "fl":
 			if i != 3 {
 				wrongArgs(cmd)

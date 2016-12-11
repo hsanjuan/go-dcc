@@ -4,7 +4,7 @@ import "sync"
 
 // CommandRepeat specifies how many times a single
 // packet is sent.
-var CommandRepeat = 5
+var CommandRepeat = 30
 
 // CommandMaxQueue specifies how many commands can
 // queue before sending a new command blocks
@@ -120,7 +120,9 @@ func (c *Controller) run() {
 	for {
 		select {
 		case <-c.shutdownCh:
-			stop.Send()
+			for i := 0; i < CommandRepeat; i++ {
+				stop.Send()
+			}
 			c.driver.TracksOff()
 			c.doneCh <- true
 			return
@@ -135,7 +137,9 @@ func (c *Controller) run() {
 			}
 			c.mux.Lock()
 			for _, loco := range c.locomotives {
-				loco.sendPackets(c.driver)
+				for i := 0; i < CommandRepeat; i++ {
+					loco.sendPackets(c.driver)
+				}
 			}
 			c.mux.Unlock()
 			idle.PacketPause()
