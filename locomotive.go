@@ -20,6 +20,8 @@ type Direction byte
 // include certain properties like speed, direction or FL.
 // Each locomotive produces two packets: one speed and direction
 // packet and one Function Group One packet.
+// Block can be used if the user wishes to integrate with a
+// custom signalling system, to track the location of the loco
 type Locomotive struct {
 	Name      string    `json:"name"`
 	Address   uint8     `json:"address"`
@@ -30,6 +32,7 @@ type Locomotive struct {
 	F2        bool      `json:"f2"`
 	F3        bool      `json:"f3"`
 	F4        bool      `json:"f4"`
+	Block			string		`json:"block"`
 
 	mux sync.Mutex
 
