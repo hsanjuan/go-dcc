@@ -129,7 +129,7 @@ This command quits dccpi. Tracks are powered off before exiting.
 }
 
 // DefaultConfigPath specifies where to read the configuration from
-// if no alternative is provided. init() settins it to ~/.dccpi
+// if no alternative is provided. init() sets it it to ~/.dccpi
 var DefaultConfigPath = ""
 
 // The dccpi line prompt
