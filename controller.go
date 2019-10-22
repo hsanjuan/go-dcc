@@ -17,7 +17,7 @@ var CommandMaxQueue = 3
 // the tracks.
 type Controller struct {
 	locomotives map[string]*Locomotive
-	mux         sync.Mutex
+	mux         sync.RWMutex
 	driver      Driver
 
 	started    bool
@@ -73,16 +73,16 @@ func (c *Controller) RmLoco(l *Locomotive) {
 // GetLoco retrieves a DCC device by its Name. The boolean is
 // true if the Locomotive was found.
 func (c *Controller) GetLoco(n string) (*Locomotive, bool) {
-	c.mux.Lock()
-	defer c.mux.Unlock()
+	c.mux.RLock()
+	defer c.mux.RUnlock()
 	l, ok := c.locomotives[n]
 	return l, ok
 }
 
 // Locos returns a list of all registered Locomotives.
 func (c *Controller) Locos() []*Locomotive {
-	c.mux.Lock()
-	defer c.mux.Unlock()
+	c.mux.RLock()
+	defer c.mux.RUnlock()
 	locos := make([]*Locomotive, 0, len(c.locomotives))
 	for _, l := range c.locomotives {
 		locos = append(locos, l)
@@ -131,17 +131,18 @@ func (c *Controller) run() {
 				p.Send()
 			}
 		default:
+			c.mux.RLock()
 			if len(c.locomotives) == 0 {
 				c.commandCh <- idle
+				c.mux.RUnlock()
 				break
 			}
-			c.mux.Lock()
 			for _, loco := range c.locomotives {
 				for i := 0; i < CommandRepeat; i++ {
 					loco.sendPackets(c.driver)
 				}
 			}
-			c.mux.Unlock()
+			c.mux.RUnlock()
 			idle.PacketPause()
 		}
 	}
