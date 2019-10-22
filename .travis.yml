@@ -1,13 +1,18 @@
 language: go
 go:
-- 1.3
-- tip
-install:
-- go get golang.org/x/tools/cmd/cover
-- go get github.com/mattn/goveralls
-script:
-- make test
-- make coverage || echo "Coverage submission failed"
+- 1.13.x
+
+cache:
+  directories:
+    - $GOPATH/pkg/mod
+    - $HOME/.cache/go-build
+
 env:
-  global:
-  - secure: K92jYsLIE+h3w2JjelGemah/WHm5NxpyAPQdrwafeKXlabfF6KppdOwA3F4NwZAd0XxdoAbV4TrY/mYtD4OqyMSFzAfsK1ZKL8QxGolHtvXXX/RVO7P5Vc/Nl+6lpDkFRVJvZrzwp5uHN1y139q2CID5mg/qQ793rIES9vznrcSegm4wqjyRtQUVrYFz9BXa8/C2btHiKWFWqUMVQODmLvfNGPiCFi1esceDoZk9v25F+oWZNAdJzAdZ7oC+Bg0D+OlSYYJmoVZ4bYdWarFiw5WxEtAkgZRtfvYQt1An8e9Tvbbn05IMXvPStGAFQCJQ0sKlFao/Zt/e8iXYNMIzIDx7ydsDNIfz4G7dhDocJ/yQXaIZW1MoxWfdJIcpjFtJ5djWuzBnZ6tYgeUtKQwrmkeywj5NJ1A7kA0Ar7WnB6jFSXOmiR7QsooSNwr8iW6CKQnTubmht3BrBvCI6sgQamKsPMvBt0S9v9HFzPbFt4mjorj3LUcuyEG69cCgy3/ybEvimIal58L40xqPF5sP+cK+7giDRUMMlcAPueANh32uUXfMqldVy54e0HMdNhUE8HIxsten+hhraX6RDr4v2AtAO/jgB98R9vuBjX4J1wDLrA+0E57GfJiBFWYqtwUcFTpV0Dw1F9gswKxAnidk+3y1apSWT5zI3eJQab5f4gE=
+  - GO111MODULE=on
+
+script:
+  - go build ./...
+  - go test -race -coverprofile=coverage.txt -covermode=atomic ./...
+
+after_success:
+  - bash <(curl -s https://codecov.io/bash)

@@ -3,8 +3,7 @@ go-dcc
 
 [![GoDoc](https://godoc.org/github.com/hsanjuan/go-dcc?status.svg)](http://godoc.org/github.com/hsanjuan/go-dcc)
 [![Build Status](https://travis-ci.org/hsanjuan/go-dcc.svg?branch=master)](https://travis-ci.org/hsanjuan/go-dcc)
-[![Coverage Status](https://coveralls.io/repos/github/hsanjuan/go-dcc/badge.svg?branch=master)](https://coveralls.io/github/hsanjuan/go-dcc?branch=master)
-
+[![codecov](https://codecov.io/gh/hsanjuan/go-dcc/branch/master/graph/badge.svg)](https://codecov.io/gh/hsanjuan/go-dcc)
 
 > NRMA Digital Command Control (DCC) implementation in Go.
 
@@ -83,7 +82,7 @@ Here is an image of a `dccpi` printed PCB plugged to a Raspberry Pi:
 Software requirements
 ---------------------
 
-  * Go: `apt-get install golang-go`
+  * Go: `https://golang.org/dl/`
 
 
 Installation
@@ -91,24 +90,16 @@ Installation
 
 ### `dccpi`
 
-Simply run:
+To build/install:
 
+```go
+> git clone https://github.com/hsanjuan/go-dcc
+> cd go-dcc/dccpi
+> go install
 ```
-> go get -u github.com/stianeikeland/go-rpio
-> go get -u github.com/hsanjuan/go-dccpi/dccpi
-```
 
-and the `dccpi` application will be downloaded, built and installed.
+and the `dccpi` application will be installed in your `$GOPATH/bin` folder.
 
-### Sources
-
-Building sources:
-
-```
-> go get -u github.com/hsanjuan/go-dccpi
-> cd $GOPATH/src/github.com/hsanjuan/go-dccpi
-> make
-```
 
 Running
 -------
