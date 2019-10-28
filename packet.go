@@ -41,13 +41,13 @@ type Packet struct {
 }
 
 // NewPacket returns a new generic DCC Packet.
-func NewPacket(d Driver, addr byte, data []byte) *Packet {
+func NewPacket(d Driver, addr byte, data []byte) Packet {
 	ecc := addr
 	for _, i := range data {
 		ecc = ecc ^ i
 	}
 
-	return &Packet{
+	return Packet{
 		driver:  d,
 		address: addr,
 		data:    data,
@@ -58,14 +58,14 @@ func NewPacket(d Driver, addr byte, data []byte) *Packet {
 // NewBaselinePacket returns a new generic baseline packet.
 // Baseline packets are different because they use a 128 address
 // space. Therefore the address is forced to start with bit 0.
-func NewBaselinePacket(d Driver, addr byte, data []byte) *Packet {
+func NewBaselinePacket(d Driver, addr byte, data []byte) Packet {
 	addr = addr & 0x7F // 0b01111111 last 7 bits
 	return NewPacket(d, addr, data)
 }
 
 // NewSpeedAndDirectionPacket returns a new baseline DCC packet with speed and
 // direction information.
-func NewSpeedAndDirectionPacket(d Driver, addr byte, speed byte, dir Direction) *Packet {
+func NewSpeedAndDirectionPacket(d Driver, addr byte, speed byte, dir Direction) Packet {
 	addr = addr & 0x7F // 0b 0111 1111
 	if HeadlightCompatMode {
 		speed = speed & 0x0F // 4 lower bytes
@@ -76,7 +76,7 @@ func NewSpeedAndDirectionPacket(d Driver, addr byte, speed byte, dir Direction) 
 	dirB := byte(0x1&dir) << 5
 	data := (1 << 6) | dirB | speed // 0b01DCSSSS
 
-	return &Packet{
+	return Packet{
 		driver:  d,
 		address: addr,
 		data:    []byte{data},
@@ -86,8 +86,8 @@ func NewSpeedAndDirectionPacket(d Driver, addr byte, speed byte, dir Direction) 
 
 // NewFunctionGroupOnePacket returns an advanced DCC packet which allows to
 // control FL,F1-F4 functions. FL is usually associated to the headlights.
-func NewFunctionGroupOnePacket(d Driver, addr byte, fl, fl1, fl2, fl3, fl4 bool) *Packet {
-	var data, fln, fl1n, fl2n, fl3n, fl4n byte = 0, 0, 0, 0, 0, 0
+func NewFunctionGroupOnePacket(d Driver, addr byte, fl, fl1, fl2, fl3, fl4 bool) Packet {
+	var data, fln, fl1n, fl2n, fl3n, fl4n byte
 	if fl {
 		fln = 1 << 4
 	}
@@ -106,7 +106,7 @@ func NewFunctionGroupOnePacket(d Driver, addr byte, fl, fl1, fl2, fl3, fl4 bool)
 
 	data = (1 << 7) | fln | fl1n | fl2n | fl3n | fl4n
 
-	return &Packet{
+	return Packet{
 		driver:  d,
 		address: addr,
 		data:    []byte{data},
@@ -117,8 +117,8 @@ func NewFunctionGroupOnePacket(d Driver, addr byte, fl, fl1, fl2, fl3, fl4 bool)
 // NewBroadcastResetPacket returns a new broadcast baseline DCC packet which
 // makes the decoders erase their volatile memory and return to power up
 // state. This stops all locomotives at non-zero speed.
-func NewBroadcastResetPacket(d Driver) *Packet {
-	return &Packet{
+func NewBroadcastResetPacket(d Driver) Packet {
+	return Packet{
 		driver:  d,
 		address: 0,
 		data:    []byte{0},
@@ -128,8 +128,8 @@ func NewBroadcastResetPacket(d Driver) *Packet {
 
 // NewBroadcastIdlePacket returns a new broadcast baseline DCC packet
 // on which decoders perform no action.
-func NewBroadcastIdlePacket(d Driver) *Packet {
-	return &Packet{
+func NewBroadcastIdlePacket(d Driver) Packet {
+	return Packet{
 		driver:  d,
 		address: 0xFF,
 		data:    []byte{0},
@@ -140,7 +140,7 @@ func NewBroadcastIdlePacket(d Driver) *Packet {
 // NewBroadcastStopPacket returns a new broadcast baseline DCC packet which
 // tells the decoders to stop all locomotives. If softStop is false, an
 // emergency stop will happen by cutting power off the engine.
-func NewBroadcastStopPacket(d Driver, dir Direction, softStop bool, ignoreDir bool) *Packet {
+func NewBroadcastStopPacket(d Driver, dir Direction, softStop bool, ignoreDir bool) Packet {
 	var speed byte
 	if !softStop {
 		speed = 1
@@ -154,7 +154,7 @@ func NewBroadcastStopPacket(d Driver, dir Direction, softStop bool, ignoreDir bo
 
 	data := (1 << 6) | (dirB << 5) | speed
 
-	return &Packet{
+	return Packet{
 		driver:  d,
 		address: 0x0,
 		data:    []byte{data},
@@ -176,7 +176,10 @@ func delayPoll(now time.Time, d time.Duration) {
 
 // PacketPause performs a pause by sleeping
 // during the PacketSeparation time.
-func (p *Packet) PacketPause() {
+func (p Packet) PacketPause() {
+	if p.driver == nil {
+		return // NOP
+	}
 	// Not really needed
 	p.driver.Low()
 	time.Sleep(PacketSeparation)
@@ -184,9 +187,9 @@ func (p *Packet) PacketPause() {
 }
 
 // Send encodes and sends a packet using the Driver associated to it.
-func (p *Packet) Send() {
+func (p Packet) Send() {
 	if p.driver == nil {
-		panic("No driver set")
+		return // NOP
 	}
 	if p.encoded == nil {
 		p.build()
@@ -205,7 +208,7 @@ func (p *Packet) Send() {
 
 // Length returns the length of the DCC-encoded representation
 // of a packet.
-func (p *Packet) Length() int {
+func (p Packet) Length() int {
 	l := 0
 	l += PreambleBits // Preamble
 	l += 1            // Packet start
@@ -220,22 +223,23 @@ func (p *Packet) Length() int {
 	return l
 }
 
+// given a byte, returns the array of durations for every bit.
+func unpackByte(b byte) [8]time.Duration {
+	var bs [8]time.Duration
+	for i := uint8(0); i < 8; i++ {
+		bitone := (b >> (7 - i)) & 0x1
+		if bitone == 0 {
+			bs[i] = BitZeroPartDuration
+		} else {
+			bs[i] = BitOnePartDuration
+		}
+	}
+	return bs
+}
+
 // By prebuilding packages we ensure more consistent Send() times.
 func (p *Packet) build() {
 	enc := make([]time.Duration, 0, p.Length())
-
-	unpackByte := func(b byte) []time.Duration {
-		bs := make([]time.Duration, 8, 8)
-		for i := uint8(0); i < 8; i++ {
-			bit := (b >> (7 - i)) & 0x1
-			if bit == 0 {
-				bs[i] = BitZeroPartDuration
-			} else {
-				bs[i] = BitOnePartDuration
-			}
-		}
-		return bs
-	}
 
 	// Preamble
 	for i := 0; i < PreambleBits; i++ {
@@ -246,17 +250,20 @@ func (p *Packet) build() {
 	enc = append(enc, BitZeroPartDuration)
 
 	// Address
-	enc = append(enc, unpackByte(p.address)...)
+	databits := unpackByte(p.address)
+	enc = append(enc, databits[:]...)
 
 	// Data
 	for _, d := range p.data {
+		databits = unpackByte(d)
 		enc = append(enc, BitZeroPartDuration) // Data start
-		enc = append(enc, unpackByte(d)...)    // Data
+		enc = append(enc, databits[:]...)      // Data
 	}
 
 	// ECC
+	databits = unpackByte(p.ecc)
 	enc = append(enc, BitZeroPartDuration) // ECC start
-	enc = append(enc, unpackByte(p.ecc)...)
+	enc = append(enc, databits[:]...)
 
 	// Packet end
 	enc = append(enc, BitOnePartDuration)
@@ -264,7 +271,7 @@ func (p *Packet) build() {
 	p.encoded = enc
 }
 
-func (p *Packet) String() string {
+func (p Packet) String() string {
 	if p.encoded == nil {
 		p.build()
 	}

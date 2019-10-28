@@ -1,9 +1,9 @@
-package dccpi
+package rpi
 
 import "testing"
 
 func TestNew(t *testing.T) {
-	d, err := NewDCCPi()
+	d, err := NewRPi()
 	if d == nil && err == nil {
 		t.Error("cannot return both nil")
 	}

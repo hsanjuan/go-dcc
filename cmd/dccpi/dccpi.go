@@ -10,8 +10,8 @@ import (
 	"strconv"
 
 	dcc "github.com/hsanjuan/go-dcc"
-	"github.com/hsanjuan/go-dcc/driver/dccpi"
 	"github.com/hsanjuan/go-dcc/driver/dummy"
+	"github.com/hsanjuan/go-dcc/driver/rpi"
 	rpio "github.com/stianeikeland/go-rpio"
 )
 
@@ -128,11 +128,7 @@ This command quits dccpi. Tracks are powered off before exiting.
 `},
 }
 
-// DefaultConfigPath specifies where to read the configuration from
-// if no alternative is provided. init() sets it it to ~/.dccpi
-var DefaultConfigPath = ""
-
-// The dccpi line prompt
+// Prompt specifies the dccpi line prompt
 const Prompt = "dccpi> "
 
 // Command line flags
@@ -166,9 +162,9 @@ func check(e error) {
 	}
 }
 
-func init() {
+func setup() {
 	usr, _ := user.Current()
-	DefaultConfigPath = filepath.Join(usr.HomeDir, ".dccpi")
+	defaultConfigPath := filepath.Join(usr.HomeDir, ".dccpi")
 	flag.Usage = func() {
 		perr("Usage: dccpi [options]")
 		perr(description)
@@ -177,30 +173,32 @@ func init() {
 
 	}
 
-	flag.StringVar(&configFlag, "config", DefaultConfigPath,
+	flag.StringVar(&configFlag, "config", defaultConfigPath,
 		"location of a dccpi configuration file")
-	flag.UintVar(&signalPinFlag, "signalPin", uint(dccpi.SignalGPIO),
+	flag.UintVar(&signalPinFlag, "signalPin", uint(rpi.SignalGPIO),
 		"GPIO Pin to use for the DCC signal")
-	flag.UintVar(&brakePinFlag, "brakePin", uint(dccpi.BrakeGPIO),
+	flag.UintVar(&brakePinFlag, "brakePin", uint(rpi.BrakeGPIO),
 		"GPIO Pin to use for the Brake signal (cuts power from tracks")
 	flag.Parse()
 }
 
 func main() {
-	cfg, err := dcc.LoadConfig(configFlag)
+	setup()
+
+	cfg, err := LoadConfig(configFlag)
 	if err != nil {
-		perr("Error: cannot load configuration. Using empty one.")
-		cfg = &dcc.Config{}
+		perr("Error: cannot load configuration from " + configFlag + ". Using empty one.")
+		cfg = dcc.Config{}
 	}
 
-	dccpi.BrakeGPIO = rpio.Pin(brakePinFlag)
-	dccpi.SignalGPIO = rpio.Pin(signalPinFlag)
+	rpi.BrakeGPIO = rpio.Pin(brakePinFlag)
+	rpi.SignalGPIO = rpio.Pin(signalPinFlag)
 
 	var dpi dcc.Driver
-	dpi, err = dccpi.NewDCCPi()
+	dpi, err = rpi.New()
 	if err != nil {
 		perr("Error: DCCPi no available. Using dummy driver.")
-		dpi = &dummy.DCCDummy{}
+		dpi = &dummy.Driver{}
 	}
 
 	ctrl := dcc.NewControllerWithConfig(dpi, cfg)
@@ -297,7 +295,7 @@ func (r *repl) run() {
 			if err != nil {
 				perr("Error: wrong DCC address: " + err.Error())
 			}
-			l := &dcc.Locomotive{
+			l := dcc.Locomotive{
 				Name:    arg1,
 				Address: uint8(n),
 			}
@@ -307,12 +305,7 @@ func (r *repl) run() {
 				wrongArgs(cmd)
 				break
 			}
-			l, ok := r.ctrl.GetLoco(arg1)
-			if !ok {
-				notReg()
-				break
-			}
-			r.ctrl.RmLoco(l)
+			r.ctrl.RmLoco(arg1)
 		case "status":
 			if i > 2 {
 				wrongArgs(cmd)
@@ -346,7 +339,7 @@ func (r *repl) run() {
 				perr("Wrong speed value: " + err.Error())
 			}
 			l.Speed = uint8(n)
-			l.Apply()
+			r.ctrl.AddLoco(l)
 		case "direction":
 			if i != 3 {
 				wrongArgs(cmd)
@@ -360,13 +353,13 @@ func (r *repl) run() {
 			switch arg2 {
 			case "forward":
 				l.Direction = dcc.Forward
-				l.Apply()
+				r.ctrl.AddLoco(l)
 			case "backward":
 				l.Direction = dcc.Backward
-				l.Apply()
+				r.ctrl.AddLoco(l)
 			case "reverse":
 				l.Direction = (l.Direction + 1%2)
-				l.Apply()
+				r.ctrl.AddLoco(l)
 			default:
 				wrongArgs(cmd)
 			}
@@ -390,24 +383,26 @@ func (r *repl) run() {
 			switch arg2 {
 			case "on":
 				l.Fl = true
-				l.Apply()
+				r.ctrl.AddLoco(l)
 			case "off":
 				l.Fl = false
-				l.Apply()
+				r.ctrl.AddLoco(l)
 			default:
 				wrongArgs(cmd)
 			}
 		case "save":
 			locos := r.ctrl.Locos()
-			cfg := &dcc.Config{
+			cfg := dcc.Config{
 				Locomotives: locos,
 			}
-			err := cfg.Save(configFlag)
+			err := SaveConfig(cfg, configFlag)
 			if err != nil {
 				perr("Error: saving configuration: " + err.Error())
 				break
 			}
 			fmt.Println("Configuration saved to", configFlag)
+		case "debug":
+			fmt.Println(dummy.GuessBuffer.String())
 		default:
 			l, ok := r.ctrl.GetLoco(cmd)
 			if !ok {

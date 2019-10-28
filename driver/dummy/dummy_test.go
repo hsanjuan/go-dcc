@@ -6,7 +6,7 @@ import (
 )
 
 func TestGuessBuffer(t *testing.T) {
-	d := DCCDummy{}
+	d := Driver{}
 	d.TracksOn()
 	d.Low()
 	d.High()

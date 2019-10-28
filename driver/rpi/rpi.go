@@ -1,10 +1,9 @@
-// package pi provides a Raspberry Pi driver for go-dcc.
+// Package rpi provides a Raspberry Pi driver for go-dcc.
 //
 // Note that the Raspberry Pi needs to be equipped with an additional booster
 // circuit in order to send the signal to the tracks. See the README.md for
 // more information.
-
-package dccpi
+package rpi
 
 import (
 	"fmt"
@@ -30,29 +29,36 @@ func init() {
 	SignalGPIO.Output()
 }
 
-type DCCPi struct {
+// Driver implements a driver that can control Raspberry Pi GPIO pins.
+type Driver struct {
 }
 
-func NewDCCPi() (*DCCPi, error) {
+// New returns a new driver. It will return an error if gpio is not
+// accessible.
+func New() (Driver, error) {
 	err := rpio.Open()
 	if err != nil {
-		return nil, err
+		return Driver{}, err
 	}
-	return &DCCPi{}, nil
+	return Driver{}, nil
 }
 
-func (pi *DCCPi) Low() {
+// Low sets the SignalGPIO pin to low.
+func (pi Driver) Low() {
 	SignalGPIO.Low()
 }
 
-func (pi *DCCPi) High() {
+// High sets the SignalGPIO pin to high.
+func (pi Driver) High() {
 	SignalGPIO.High()
 }
 
-func (pi *DCCPi) TracksOff() {
+// TracksOff sets the BrakeGPIO pin to high.
+func (pi Driver) TracksOff() {
 	BrakeGPIO.High()
 }
 
-func (pi *DCCPi) TracksOn() {
+// TracksOn sets the BrakeGPIO pin to low.
+func (pi Driver) TracksOn() {
 	BrakeGPIO.Low()
 }

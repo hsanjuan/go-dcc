@@ -2,7 +2,6 @@ package dcc
 
 import (
 	"fmt"
-	"sync"
 )
 
 // Direction constants.
@@ -31,13 +30,12 @@ type Locomotive struct {
 	F3        bool      `json:"f3"`
 	F4        bool      `json:"f4"`
 
-	mux sync.Mutex
-
-	speedPacket *Packet
-	flPacket    *Packet
+	packetsReady int32
+	speedPacket  Packet
+	flPacket     Packet
 }
 
-func (l *Locomotive) String() string {
+func (l Locomotive) String() string {
 	var dir, fl, f1, f2, f3, f4 string = "", "off", "off", "off", "off", "off"
 	if l.Direction == Forward {
 		dir = ">"
@@ -71,29 +69,18 @@ func (l *Locomotive) String() string {
 		f4)
 }
 
-func (l *Locomotive) sendPackets(d Driver) {
-	if l.speedPacket == nil {
-		l.mux.Lock()
-		l.speedPacket = NewSpeedAndDirectionPacket(d,
-			l.Address, l.Speed, l.Direction)
-		l.mux.Unlock()
-	}
-	if l.flPacket == nil {
-		l.mux.Lock()
-		l.flPacket = NewFunctionGroupOnePacket(d,
-			l.Address, l.Fl, l.F1, l.F2, l.F3, l.F4)
-		l.mux.Unlock()
-	}
-	l.speedPacket.Send()
-	l.flPacket.Send()
+// prebuildPackets precompiles the speed and function packets for this
+// locomotive. It must be called at least once before calling sendPackets.
+func (l *Locomotive) prebuildPackets(d Driver) {
+	l.speedPacket = NewSpeedAndDirectionPacket(
+		d, l.Address, l.Speed, l.Direction,
+	)
+	l.flPacket = NewFunctionGroupOnePacket(
+		d, l.Address, l.Fl, l.F1, l.F2, l.F3, l.F4,
+	)
 }
 
-// Apply makes any changes to the Locomotive's properties
-// to be reflected in the packets generated for it and,
-// therefore, alter the behaviour of the device on the tracks.
-func (l *Locomotive) Apply() {
-	l.mux.Lock()
-	defer l.mux.Unlock()
-	l.speedPacket = nil
-	l.flPacket = nil
+func (l Locomotive) sendPackets() {
+	l.speedPacket.Send()
+	l.flPacket.Send()
 }
