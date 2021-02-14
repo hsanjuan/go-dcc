@@ -132,14 +132,17 @@ func (c *Controller) run() {
 			}
 		default:
 			c.mux.RLock()
-			if len(c.locomotives) == 0 {
-				c.commandCh <- idle
-				c.mux.RUnlock()
-				break
-			}
-			for _, loco := range c.locomotives {
-				for i := 0; i < CommandRepeat; i++ {
-					loco.sendPackets(c.driver)
+			{
+				// Idle and retry later
+				if len(c.locomotives) == 0 {
+					c.commandCh <- idle
+					c.mux.RUnlock()
+					break // from the select
+				}
+				for _, loco := range c.locomotives {
+					for i := 0; i < CommandRepeat; i++ {
+						loco.sendPackets(c.driver)
+					}
 				}
 			}
 			c.mux.RUnlock()
