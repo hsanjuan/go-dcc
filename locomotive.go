@@ -72,17 +72,20 @@ func (l *Locomotive) String() string {
 }
 
 func (l *Locomotive) sendPackets(d Driver) {
+	l.mux.Lock();
+	defer l.mux.Unlock();
+	//
 	if l.speedPacket == nil {
-		l.mux.Lock()
+		//l.mux.Lock()
 		l.speedPacket = NewSpeedAndDirectionPacket(d,
 			l.Address, l.Speed, l.Direction)
-		l.mux.Unlock()
+		//l.mux.Unlock()
 	}
 	if l.flPacket == nil {
-		l.mux.Lock()
+		//l.mux.Lock()
 		l.flPacket = NewFunctionGroupOnePacket(d,
 			l.Address, l.Fl, l.F1, l.F2, l.F3, l.F4)
-		l.mux.Unlock()
+		//l.mux.Unlock()
 	}
 	l.speedPacket.Send()
 	l.flPacket.Send()
@@ -94,6 +97,7 @@ func (l *Locomotive) sendPackets(d Driver) {
 func (l *Locomotive) Apply() {
 	l.mux.Lock()
 	defer l.mux.Unlock()
+	//
 	l.speedPacket = nil
 	l.flPacket = nil
 }
