@@ -12,7 +12,7 @@ import (
 	dcc "github.com/hsanjuan/go-dcc"
 	"github.com/hsanjuan/go-dcc/driver/dccpi"
 	"github.com/hsanjuan/go-dcc/driver/dummy"
-	rpio "github.com/stianeikeland/go-rpio"
+	rpio "github.com/stianeikeland/go-rpio/v4"
 )
 
 const description = `
